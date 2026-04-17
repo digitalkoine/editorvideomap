@@ -1,9 +1,11 @@
 const state = {
   map: null,
   markersLayer: null,
+  geoJsonLayer: null,
   selectedLatLng: null,
   mediaLibrary: {},
   places: [],
+  geoFeatures: [],
   nextId: 1,
 };
 
@@ -46,6 +48,7 @@ function setupMap() {
   }).addTo(state.map);
 
   state.markersLayer = L.layerGroup().addTo(state.map);
+  state.geoJsonLayer = L.layerGroup().addTo(state.map);
 
   state.map.on("click", (event) => {
     state.selectedLatLng = event.latlng;
@@ -138,13 +141,14 @@ function resetPointForm() {
 
 function renderAll() {
   renderPlaces();
-  renderMarkers();
+  renderMapLayers();
 }
 
-function renderMarkers() {
+function renderMapLayers() {
   state.markersLayer.clearLayers();
+  state.geoJsonLayer.clearLayers();
 
-  if (!state.places.length) {
+  if (!state.places.length && !state.geoFeatures.length) {
     return;
   }
 
@@ -159,10 +163,51 @@ function renderMarkers() {
     bounds.push([place.lat, place.lng]);
   });
 
+  state.geoFeatures.forEach((entry) => {
+    const layer = L.geoJSON(entry.feature, {
+      style: {
+        color: "#dd6b20",
+        weight: 3,
+        opacity: 0.9,
+        fillColor: "#f59e0b",
+        fillOpacity: 0.18,
+      },
+      pointToLayer: (_, latlng) =>
+        L.circleMarker(latlng, {
+          radius: 7,
+          color: "#9a3412",
+          weight: 2,
+          fillColor: "#f59e0b",
+          fillOpacity: 0.95,
+        }),
+      onEachFeature: (_, featureLayer) => {
+        featureLayer.bindPopup(renderPopupHtml(entry), {
+          maxWidth: entry.youtubeVideoId ? 500 : 340,
+          minWidth: entry.youtubeVideoId ? 440 : 300,
+        });
+      },
+    }).addTo(state.geoJsonLayer);
+
+    if (layer.getBounds && layer.getBounds().isValid()) {
+      bounds.push(layer.getBounds());
+    }
+  });
+
   if (bounds.length === 1) {
-    state.map.setView(bounds[0], 13);
+    if (Array.isArray(bounds[0])) {
+      state.map.setView(bounds[0], 13);
+    } else {
+      state.map.fitBounds(bounds[0], { padding: [40, 40] });
+    }
   } else {
-    state.map.fitBounds(bounds, { padding: [40, 40] });
+    const group = L.featureGroup([
+      ...state.markersLayer.getLayers(),
+      ...state.geoJsonLayer.getLayers(),
+    ]);
+    const allBounds = group.getBounds();
+    if (allBounds.isValid()) {
+      state.map.fitBounds(allBounds, { padding: [40, 40] });
+    }
   }
 }
 
@@ -230,10 +275,11 @@ function loadPlaceIntoForm(id) {
 }
 
 function clearAllPlaces() {
-  if (!state.places.length) return;
+  if (!state.places.length && !state.geoFeatures.length) return;
   const confirmed = window.confirm("Vuoi eliminare tutti i punti della mappa?");
   if (!confirmed) return;
   state.places = [];
+  state.geoFeatures = [];
   renderAll();
 }
 
@@ -255,6 +301,19 @@ async function handleMediaUpload(event) {
     const media = state.mediaLibrary[place.mediaName];
     return {
       ...place,
+      media: {
+        name: media.name,
+        type: media.type,
+        dataUrl: media.dataUrl,
+      },
+    };
+  });
+
+  state.geoFeatures = state.geoFeatures.map((entry) => {
+    if (entry.media || !entry.mediaName || !state.mediaLibrary[entry.mediaName]) return entry;
+    const media = state.mediaLibrary[entry.mediaName];
+    return {
+      ...entry,
       media: {
         name: media.name,
         type: media.type,
@@ -346,34 +405,50 @@ async function handleGeoJsonUpload(event) {
   if (!file) return;
 
   try {
-    const data = JSON.parse(await file.text());
-    const features = data.type === "FeatureCollection" ? data.features : [data];
-    const imported = [];
+    const rawText = await file.text();
+    const data = JSON.parse(rawText.replace(/^\uFEFF/, ""));
+    const features = normalizeGeoJsonFeatures(data);
+    const importedPoints = [];
+    const importedFeatures = [];
 
     features.forEach((feature) => {
-      if (feature?.geometry?.type !== "Point") return;
-      const coords = feature.geometry.coordinates || [];
       const properties = feature.properties || {};
-      if (!isFinite(Number(coords[1])) || !isFinite(Number(coords[0]))) return;
+      if (!feature?.geometry?.type) return;
 
-      imported.push(
-        buildPlace({
-          title: pickFirst(properties, ["title", "name", "titolo"]),
-          description: pickFirst(properties, ["description", "desc", "descrizione"]),
-          lat: coords[1],
-          lng: coords[0],
-          mediaName: pickFirst(properties, ["mediaName", "media", "file", "filename"]),
-          mediaUrl: pickFirst(properties, ["mediaUrl", "audioUrl", "videoUrl", "url"]),
-          mediaType: pickFirst(properties, ["mediaType", "type"]),
-          youtubeUrl: pickFirst(properties, ["youtubeUrl", "youtube", "video"]),
-        })
-      );
+      if (feature.geometry.type === "Point") {
+        const coords = feature.geometry.coordinates || [];
+        if (!isFinite(Number(coords[1])) || !isFinite(Number(coords[0]))) return;
+
+        importedPoints.push(
+          buildPlace({
+            title: pickFirst(properties, ["title", "name", "nome", "titolo", "NAME_1", "NAME"]),
+            description: pickFirst(properties, [
+              "description",
+              "desc",
+              "descrizione",
+              "COUNTRY",
+              "TYPE_1",
+              "ENGTYPE_1",
+            ]),
+            lat: coords[1],
+            lng: coords[0],
+            mediaName: pickFirst(properties, ["mediaName", "media", "file", "filename"]),
+            mediaUrl: pickFirst(properties, ["mediaUrl", "audioUrl", "videoUrl", "url"]),
+            mediaType: pickFirst(properties, ["mediaType", "type"]),
+            youtubeUrl: pickFirst(properties, ["youtubeUrl", "youtube", "video"]),
+          })
+        );
+        return;
+      }
+
+      importedFeatures.push(buildGeoFeature(feature));
     });
 
-    if (!imported.length) {
-      window.alert("Nel GeoJSON non ho trovato punti validi.");
+    if (!importedPoints.length && !importedFeatures.length) {
+      window.alert("Nel GeoJSON non ho trovato geometrie valide.");
     } else {
-      state.places.push(...imported);
+      state.places.push(...importedPoints);
+      state.geoFeatures.push(...importedFeatures);
       renderAll();
     }
   } catch (error) {
@@ -382,6 +457,54 @@ async function handleGeoJsonUpload(event) {
   }
 
   event.target.value = "";
+}
+
+function normalizeGeoJsonFeatures(data) {
+  if (!data || typeof data !== "object") return [];
+  if (data.type === "FeatureCollection") return Array.isArray(data.features) ? data.features : [];
+  if (data.type === "Feature") return [data];
+  if (data.type && data.coordinates) {
+    return [{ type: "Feature", properties: {}, geometry: data }];
+  }
+  return [];
+}
+
+function buildGeoFeature(feature) {
+  const properties = feature.properties || {};
+  const mediaName = pickFirst(properties, ["mediaName", "media", "file", "filename"]);
+  const media = mediaName ? state.mediaLibrary[mediaName] || null : null;
+  const youtube = normalizeYoutubeUrl(
+    pickFirst(properties, ["youtubeUrl", "youtube", "video"])
+  );
+
+  return {
+    id: state.nextId++,
+    title:
+      pickFirst(properties, ["title", "name", "nome", "titolo", "NAME_1", "NAME"]) ||
+      "Elemento geografico",
+    description: pickFirst(properties, [
+      "description",
+      "desc",
+      "descrizione",
+      "COUNTRY",
+      "TYPE_1",
+      "ENGTYPE_1",
+    ]),
+    mediaName,
+    media: media
+      ? {
+          name: media.name,
+          type: media.type,
+          dataUrl: media.dataUrl,
+        }
+      : null,
+    remoteMediaUrl: pickFirst(properties, ["mediaUrl", "audioUrl", "videoUrl", "url"]),
+    remoteMediaType: pickFirst(properties, ["mediaType", "type"]),
+    youtubeUrl: youtube.embedUrl,
+    youtubeWatchUrl: youtube.watchUrl,
+    youtubeVideoId: youtube.videoId,
+    feature,
+  };
 }
 
 function parseCsv(text) {

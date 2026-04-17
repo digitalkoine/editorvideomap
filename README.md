@@ -75,6 +75,17 @@ In questo caso:
 }
 ```
 
+## GeoJSON di confini
+
+L'app ora riconosce anche GeoJSON con geometrie come:
+
+- `Polygon`
+- `MultiPolygon`
+- `LineString`
+- `MultiLineString`
+
+Per esempio un file di regioni come `regions.json` viene letto come insieme di aree e non viene più scartato solo perché non contiene punti.
+
 ## Note
 
 - Il file HTML esportato è pensato per la sola visualizzazione finale.
