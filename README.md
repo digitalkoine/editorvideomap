@@ -8,6 +8,8 @@ Piccola applicazione frontend per costruire una mappa sonora o audiovisiva a par
 - audio o video locali
 - link video di YouTube
 
+https://digitalkoine.github.io/editorvideomap/
+
 ## Avvio
 
 Apri [index.html](/Users/giovannipietrovitali/Documents/New project/index.html) in un browser moderno.
