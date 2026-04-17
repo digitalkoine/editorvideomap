@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mappa dei Suoni</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <header class="hero">
+          <p class="eyebrow">Laboratorio di geografia sonora</p>
+          <h1>Mappa dei Suoni</h1>
+          <p class="hero-copy">
+            Carica dati, collega audio o video, aggiungi YouTube e costruisci una carta
+            narrativa dello spazio da condividere con la classe.
+          </p>
+        </header>
+
+        <section class="panel">
+          <h2>Progetto</h2>
+          <label>
+            Titolo mappa
+            <input id="mapTitle" type="text" value="Mappa dei Suoni" />
+          </label>
+          <label>
+            Sottotitolo
+            <textarea id="mapSubtitle" rows="3">
+Ascoltare lo spazio aiuta a capire come i luoghi cambiano e che storie raccontano.</textarea
+            >
+          </label>
+          <button id="exportButton" class="primary">Scarica HTML finale</button>
+          <p class="hint">
+            Il file esportato contiene solo la mappa finale, senza strumenti di modifica.
+          </p>
+        </section>
+
+        <section class="panel">
+          <h2>Importa</h2>
+          <label>
+            CSV
+            <input id="csvInput" type="file" accept=".csv,text/csv" />
+          </label>
+          <p class="hint">
+            Colonne consigliate: <code>title,description,lat,lng,mediaName,mediaUrl,mediaType,youtubeUrl</code>
+          </p>
+          <label>
+            GeoJSON
+            <input id="geojsonInput" type="file" accept=".geojson,.json,application/geo+json,application/json" />
+          </label>
+          <p class="hint">
+            Per i GeoJSON usa punti con proprietà come <code>title</code>,
+            <code>description</code>, <code>mediaName</code>, <code>mediaUrl</code> o
+            <code>youtubeUrl</code>.
+          </p>
+          <label>
+            Audio o video locali
+            <input id="mediaInput" type="file" accept="audio/*,video/*" multiple />
+          </label>
+          <div id="mediaLibrary" class="media-library empty">Nessun media caricato.</div>
+        </section>
+
+        <section class="panel">
+          <h2>Aggiungi punto</h2>
+          <p class="hint">
+            Clicca sulla mappa per impostare la posizione, poi completa i campi.
+          </p>
+          <div class="coords" id="selectedCoords">Coordinate: nessuna posizione selezionata</div>
+          <label>
+            Titolo
+            <input id="pointTitle" type="text" placeholder="Piazza, parco, strada..." />
+          </label>
+          <label>
+            Descrizione
+            <textarea id="pointDescription" rows="4" placeholder="Che cosa si sente? Che relazione c'è con lo spazio?"></textarea>
+          </label>
+          <label>
+            Media locale
+            <select id="pointMedia">
+              <option value="">Nessun media locale</option>
+            </select>
+          </label>
+          <label>
+            Video YouTube
+            <input id="youtubeUrl" type="url" placeholder="https://www.youtube.com/watch?v=..." />
+          </label>
+          <button id="addPointButton">Aggiungi punto</button>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title-row">
+            <h2>Punti inseriti</h2>
+            <button id="clearAllButton" class="ghost">Svuota</button>
+          </div>
+          <div id="placesList" class="places-list empty">Nessun punto ancora creato.</div>
+        </section>
+      </aside>
+
+      <main class="map-area">
+        <section class="map-header">
+          <div>
+            <p class="eyebrow">Editor</p>
+            <h2 id="liveTitle">Mappa dei Suoni</h2>
+            <p id="liveSubtitle">
+              Ascoltare lo spazio aiuta a capire come i luoghi cambiano e che storie raccontano.
+            </p>
+          </div>
+          <div class="legend">
+            <span><i class="dot"></i> Punto sonoro o audiovisivo</span>
+          </div>
+        </section>
+        <div id="map"></div>
+      </main>
+    </div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
