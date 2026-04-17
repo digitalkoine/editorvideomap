@@ -233,19 +233,29 @@ button.ghost {
   line-height: 1.45;
 }
 
+.popup-content {
+  min-width: 320px;
+}
+
+.popup-content.has-youtube {
+  min-width: 440px;
+}
+
 .popup-content audio,
 .popup-content video,
-.popup-content iframe,
 .popup-content iframe {
   width: 100%;
   margin-top: 10px;
   border-radius: 12px;
-  aspect-ratio: 16 / 9;
-  min-height: 180px;
 }
 
 .popup-content video {
   max-height: 220px;
+}
+
+.popup-content iframe {
+  aspect-ratio: 16 / 9;
+  min-height: 248px;
 }
 
 .youtube-card a {

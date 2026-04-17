@@ -152,7 +152,10 @@ function renderMarkers() {
 
   state.places.forEach((place) => {
     const marker = L.marker([place.lat, place.lng]).addTo(state.markersLayer);
-    marker.bindPopup(renderPopupHtml(place), { maxWidth: 320 });
+    marker.bindPopup(renderPopupHtml(place), {
+      maxWidth: place.youtubeVideoId ? 500 : 340,
+      minWidth: place.youtubeVideoId ? 440 : 300,
+    });
     bounds.push([place.lat, place.lng]);
   });
 
@@ -222,7 +225,7 @@ function loadPlaceIntoForm(id) {
   dom.pointTitle.value = place.title;
   dom.pointDescription.value = place.description;
   dom.pointMedia.value = place.mediaName || "";
-  dom.youtubeUrl.value = place.youtubeUrl || "";
+  dom.youtubeUrl.value = place.youtubeWatchUrl || "";
   renderAll();
 }
 
@@ -516,7 +519,7 @@ function renderPopupHtml(place) {
     : "<p>Nessuna descrizione.</p>";
 
   return `
-    <div class="popup-content">
+    <div class="popup-content${place.youtubeVideoId ? " has-youtube" : ""}">
       <h3>${escapeHtml(place.title)}</h3>
       ${description}
       ${renderMediaHtml(place)}
@@ -528,19 +531,19 @@ function renderMediaHtml(place) {
   const pieces = [];
 
   if (place.media?.type?.startsWith("audio/")) {
-    pieces.push(`<audio controls autoplay playsinline src="${place.media.dataUrl}"></audio>`);
+    pieces.push(`<audio controls src="${place.media.dataUrl}"></audio>`);
   }
 
   if (place.media?.type?.startsWith("video/")) {
-    pieces.push(`<video controls autoplay playsinline src="${place.media.dataUrl}"></video>`);
+    pieces.push(`<video controls playsinline src="${place.media.dataUrl}"></video>`);
   }
 
   if (place.remoteMediaUrl && place.remoteMediaType.startsWith("audio/")) {
-    pieces.push(`<audio controls autoplay playsinline src="${place.remoteMediaUrl}"></audio>`);
+    pieces.push(`<audio controls src="${place.remoteMediaUrl}"></audio>`);
   }
 
   if (place.remoteMediaUrl && place.remoteMediaType.startsWith("video/")) {
-    pieces.push(`<video controls autoplay playsinline src="${place.remoteMediaUrl}"></video>`);
+    pieces.push(`<video controls playsinline src="${place.remoteMediaUrl}"></video>`);
   }
 
   if (place.youtubeVideoId && place.youtubeWatchUrl) {
@@ -582,12 +585,7 @@ function handlePopupOpen(event) {
   if (!container) return;
 
   container.querySelectorAll("audio, video").forEach((media) => {
-    const playPromise = media.play?.();
-    if (playPromise && typeof playPromise.catch === "function") {
-      playPromise.catch(() => {
-        media.controls = true;
-      });
-    }
+    media.controls = true;
   });
 }
 
@@ -693,16 +691,24 @@ function exportStandaloneHtml() {
         padding-top: 10px;
         margin-top: 10px;
       }
+      .popup-content {
+        min-width: 320px;
+      }
+      .popup-content.has-youtube {
+        min-width: 440px;
+      }
       .popup-content audio,
       .popup-content video,
       .popup-content iframe {
         width: 100%;
         margin-top: 10px;
         border-radius: 12px;
-        aspect-ratio: 16 / 9;
-        min-height: 180px;
       }
       .popup-content video { max-height: 220px; }
+      .popup-content iframe {
+        aspect-ratio: 16 / 9;
+        min-height: 248px;
+      }
       .youtube-card a {
         display: block;
         text-decoration: none;
@@ -794,12 +800,15 @@ function exportStandaloneHtml() {
       data.places.forEach((place) => {
         const marker = L.marker([place.lat, place.lng]).addTo(map);
         marker.bindPopup(\`
-          <div class="popup-content">
+          <div class="popup-content\${place.youtubeVideoId ? " has-youtube" : ""}">
             <h3>\${escapeHtmlInline(place.title)}</h3>
             <p>\${escapeHtmlInline(place.description || "Nessuna descrizione.")}</p>
             \${renderMediaInline(place)}
           </div>
-        \`);
+        \`, {
+          maxWidth: place.youtubeVideoId ? 500 : 340,
+          minWidth: place.youtubeVideoId ? 440 : 300,
+        });
         bounds.push([place.lat, place.lng]);
       });
 
@@ -812,16 +821,16 @@ function exportStandaloneHtml() {
       function renderMediaInline(place) {
         const pieces = [];
         if (place.media && place.media.type && place.media.type.startsWith("audio/")) {
-          pieces.push(\`<audio controls autoplay playsinline src="\${place.media.dataUrl}"></audio>\`);
+          pieces.push(\`<audio controls src="\${place.media.dataUrl}"></audio>\`);
         }
         if (place.media && place.media.type && place.media.type.startsWith("video/")) {
-          pieces.push(\`<video controls autoplay playsinline src="\${place.media.dataUrl}"></video>\`);
+          pieces.push(\`<video controls playsinline src="\${place.media.dataUrl}"></video>\`);
         }
         if (place.remoteMediaUrl && place.remoteMediaType && place.remoteMediaType.startsWith("audio/")) {
-          pieces.push(\`<audio controls autoplay playsinline src="\${place.remoteMediaUrl}"></audio>\`);
+          pieces.push(\`<audio controls src="\${place.remoteMediaUrl}"></audio>\`);
         }
         if (place.remoteMediaUrl && place.remoteMediaType && place.remoteMediaType.startsWith("video/")) {
-          pieces.push(\`<video controls autoplay playsinline src="\${place.remoteMediaUrl}"></video>\`);
+          pieces.push(\`<video controls playsinline src="\${place.remoteMediaUrl}"></video>\`);
         }
         if (place.youtubeVideoId && place.youtubeWatchUrl) {
           if (window.location.protocol === "file:") {
@@ -853,12 +862,7 @@ function exportStandaloneHtml() {
         if (!container) return;
 
         container.querySelectorAll("audio, video").forEach((media) => {
-          const playPromise = media.play ? media.play() : null;
-          if (playPromise && typeof playPromise.catch === "function") {
-            playPromise.catch(() => {
-              media.controls = true;
-            });
-          }
+          media.controls = true;
         });
       }
 
